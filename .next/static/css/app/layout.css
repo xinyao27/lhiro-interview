@@ -691,6 +691,9 @@ video {
 .border-input {
   border-color: hsl(var(--input));
 }
+.border-muted-foreground\/30 {
+  border-color: hsl(var(--muted-foreground) / 0.3);
+}
 .bg-background {
   background-color: hsl(var(--background));
 }
@@ -729,6 +732,10 @@ video {
   padding-left: 0.25rem;
   padding-right: 0.25rem;
 }
+.px-2 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
 .px-3 {
   padding-left: 0.75rem;
   padding-right: 0.75rem;
@@ -744,6 +751,10 @@ video {
 .py-0\.5 {
   padding-top: 0.125rem;
   padding-bottom: 0.125rem;
+}
+.py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
 }
 .py-2 {
   padding-top: 0.5rem;

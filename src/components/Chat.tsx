@@ -23,12 +23,10 @@ export default function Chat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, stop } = useChat({
     api: '/api/agent',
     body: {
       conversationId,
@@ -38,6 +36,8 @@ export default function Chat() {
       if (newConversationId) {
         setConversationId(newConversationId);
       }
+    },
+    async onFinish() {
     },
   });
 
@@ -77,11 +77,13 @@ export default function Chat() {
       });
 
       if (response.ok) {
-        const messages = await response.json();
-        messages.forEach((msg: ChatMessage) => {
-          if (msg.role === 'user') {
-            handleInputChange({ target: { value: msg.content } } as any);
-          }
+        const historyMessages = await response.json();
+        setSelectedConversation(conversationId);
+        setConversationId(conversationId.toString());
+        // Reset chat messages with loaded history
+        messages.splice(0, messages.length);
+        historyMessages.forEach((msg: ChatMessage) => {
+          messages.push(msg);
         });
       }
     } catch (error) {
@@ -96,11 +98,17 @@ export default function Chat() {
       });
 
       if (response.ok) {
-        setConversations(prev => prev.filter(conv => conv.id !== conversationId));
-        if (selectedConversation === conversationId) {
-          setSelectedConversation(null);
-          setConversationId(null);
-        }
+        setConversations(prev => {
+          const newConvs = prev.filter(conv => conv.id !== conversationId);
+          if (newConvs.length === 0) {
+            setSelectedConversation(null);
+            setConversationId(null);
+          } else if (selectedConversation === conversationId) {
+            setSelectedConversation(newConvs[0].id);
+            setConversationId(newConvs[0].id.toString());
+          }
+          return newConvs;
+        });
       }
     } catch (error) {
       console.error('Error deleting conversation:', error);
@@ -114,9 +122,9 @@ export default function Chat() {
       });
 
       if (response.ok) {
-        setConversations([]);
-        setSelectedConversation(null);
-        setConversationId(null);
+      setConversations([]);
+      setSelectedConversation(null);
+      setConversationId(null);
       }
     } catch (error) {
       console.error('Error clearing conversations:', error);
@@ -207,7 +215,7 @@ export default function Chat() {
                         components={{
                           code({ children }) {
                             return (
-                              <code className="bg-muted-foreground/10 rounded px-1 py-0.5">
+                              <code className="bg-muted-foreground/10 rounded px-1 py-0.5 border border-muted-foreground/30 px-2 py-1">
                                 {children}
                               </code>
                             );
@@ -235,9 +243,16 @@ export default function Chat() {
             disabled={isLoading}
           />
           <Button
-            type="submit"
+            type={isLoading ? "button" : "submit"}
             size="lg"
             variant={isLoading ? "destructive" : "default"}
+            onClick={() => {
+              if (isLoading) {
+                stop()
+              } else {
+                formRef.current?.requestSubmit();
+              }
+            }}
           >
             {isLoading ? 'Stop' : 'Send'}
           </Button>
@@ -245,4 +260,4 @@ export default function Chat() {
       </div>
     </div>
   );
-} 
+}

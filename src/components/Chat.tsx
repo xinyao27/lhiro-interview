@@ -131,7 +131,6 @@ export default function Chat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [chatKey, setChatKey] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -174,7 +173,6 @@ export default function Chat() {
   const handleConversationSelect = async (conversationId: number) => {
     setSelectedConversation(conversationId);
     setConversationId(conversationId.toString());
-    setChatKey(prev => prev + 1);
     const response = await fetch('/api/conversations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -240,7 +238,7 @@ export default function Chat() {
               onClick={() => {
                 setSelectedConversation(null);
                 setConversationId(null);
-                setChatKey(prev => prev + 1);
+                setMessages([])
               }}
             >
               New
@@ -296,7 +294,6 @@ export default function Chat() {
 
       <div className="flex-1 flex flex-col">
         <ChatPanel
-          key={chatKey}
           messages={messages}
           input={input}
           handleInputChange={handleInputChange}

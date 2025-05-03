@@ -9,7 +9,6 @@ build
 *.env.test.local
 *.env.production.local
 .env.*
-drizzle/
 chat.db
 .DS_Store
 npm-debug.log*

@@ -19,75 +19,168 @@ interface Conversation {
   messages: ChatMessage[];
 }
 
+function ChatPanel({ messages, input, handleInputChange, handleSubmit, isLoading, stop, formRef, messagesEndRef }: {
+  messages: any[],
+  input: string,
+  handleInputChange: any,
+  handleSubmit: any,
+  isLoading: boolean,
+  stop: any,
+  formRef: React.RefObject<HTMLFormElement>,
+  messagesEndRef: React.RefObject<HTMLDivElement>,
+}) {
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (formRef.current) {
+        formRef.current.requestSubmit();
+      }
+    }
+  };
+
+  return (
+    <Card className="flex-1 mb-6 rounded-2xl shadow-2xl border-0 bg-white/90 backdrop-blur-md">
+      <CardContent className="p-6 h-[80vh] overflow-y-auto">
+        <div className="space-y-6">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center text-gray-500 animate-fade-in">
+              <div className="text-3xl font-bold mb-2 bg-gradient-to-r from-indigo-500 to-blue-400 bg-clip-text text-transparent">Welcome to Simple Chat</div>
+              <div className="text-lg mb-4">Start a new conversation or select one from the left.<br/>Type your message below to begin chatting!</div>
+              <div className="flex items-center gap-2 text-base text-gray-400">
+                <span>💡</span>
+                <span>Press <b>Enter</b> to send, <b>Shift+Enter</b> for a new line.</span>
+              </div>
+            </div>
+          )}
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={cn(
+                "flex items-start gap-3",
+                message.role === 'user' ? "justify-end" : "justify-start"
+              )}
+            >
+              <div
+                className={cn(
+                  "rounded-2xl px-5 py-3 max-w-[75%] shadow-md text-base font-medium transition-all",
+                  message.role === 'user'
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-400 text-white animate-fade-in-right"
+                    : "bg-gray-100 text-gray-800 animate-fade-in-left"
+                )}
+              >
+                {message.role === 'user' ? (
+                  <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      code({ children }) {
+                        return (
+                          <code className="bg-gray-200 rounded px-2 py-1 border border-gray-300 text-sm font-mono">
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                )}
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      </CardContent>
+      <form ref={formRef} onSubmit={handleSubmit} className="flex gap-3 mt-2 px-10 pb-7">
+        <Textarea
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+          className="flex-1 resize-none rounded-xl border-2 border-gray-200 shadow focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all bg-white/80 text-gray-800"
+          rows={3}
+          disabled={isLoading}
+        />
+        <Button
+          type={isLoading ? "button" : "submit"}
+          size="lg"
+          variant={isLoading ? "destructive" : "default"}
+          className="rounded-xl px-6 py-2 text-lg font-semibold shadow-lg bg-gradient-to-r from-indigo-500 to-blue-400 text-white hover:from-blue-500 hover:to-indigo-400 transition-all duration-200"
+          onClick={() => {
+            if (isLoading) {
+              stop()
+            } else {
+              formRef.current?.requestSubmit();
+            }
+          }}
+        >
+          {isLoading ? 'Stop' : 'Send'}
+        </Button>
+      </form>
+    </Card>
+  );
+}
+
 export default function Chat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [chatKey, setChatKey] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, stop } = useChat({
+  const {
+    messages,
+    setMessages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading,
+    stop,
+  } = useChat({
     api: '/api/agent',
-    body: {
-      conversationId,
-    },
-    onResponse: (response) => {
-      const newConversationId = response.headers.get('X-Conversation-Id');
-      if (newConversationId) {
-        setConversationId(newConversationId);
-      }
-    },
-    async onFinish() {
-    },
+    body: { conversationId },
+    onFinish: fetchConversations,
   });
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  async function fetchConversations() {
+    try {
+      const response = await fetch('/api/conversations');
+      if (response.ok) {
+        const data = await response.json();
+        setConversations(data);
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        const response = await fetch('/api/conversations');
-        if (response.ok) {
-          const data = await response.json();
-          setConversations(data);
-        }
-      } catch (error) {
-        console.error('Error fetching conversations:', error);
-      }
-    };
-
     fetchConversations();
   }, []);
 
-  const handleConversationSelect = async (conversationId: number) => {
-    try {
-      setSelectedConversation(conversationId);
-      setConversationId(conversationId.toString());
-      
-      const response = await fetch('/api/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId }),
-      });
+  useEffect(() => {
+    if (!conversations.length) {
+      setMessages([])
+    }
+  }, [conversations])
 
-      if (response.ok) {
-        const historyMessages = await response.json();
-        setSelectedConversation(conversationId);
-        setConversationId(conversationId.toString());
-        // Reset chat messages with loaded history
-        messages.splice(0, messages.length);
-        historyMessages.forEach((msg: ChatMessage) => {
-          messages.push(msg);
-        });
-      }
-    } catch (error) {
-      console.error('Error loading conversation:', error);
+  const handleConversationSelect = async (conversationId: number) => {
+    setSelectedConversation(conversationId);
+    setConversationId(conversationId.toString());
+    setChatKey(prev => prev + 1);
+    const response = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId }),
+    });
+    if (response.ok) {
+      const historyMessages = await response.json();
+      setMessages(historyMessages);
     }
   };
 
@@ -122,141 +215,95 @@ export default function Chat() {
       });
 
       if (response.ok) {
-      setConversations([]);
-      setSelectedConversation(null);
-      setConversationId(null);
+        setConversations([]);
+        setSelectedConversation(null);
+        setConversationId(null);
+        setMessages([])
       }
     } catch (error) {
       console.error('Error clearing conversations:', error);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (formRef.current) {
-        formRef.current.requestSubmit();
-      }
-    }
-  };
-
   return (
-    <div className="flex h-screen max-w-6xl mx-auto p-4 gap-4">
-      <div className="w-64 flex flex-col gap-2">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-lg font-semibold">Conversations</h2>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleClearAllConversations}
-            disabled={conversations.length === 0}
-          >
-            Clear All
-          </Button>
-        </div>
-        {conversations.map((conversation) => (
-          <div key={conversation.id} className="flex items-center gap-2">
+    <div className="flex h-screen max-w-6xl mx-auto p-8 gap-8 bg-gradient-to-br from-[#f8fafc] via-[#e0e7ef] to-[#c7d2fe] min-h-screen">
+      <div className="w-72 flex flex-col gap-4 bg-white/80 rounded-2xl shadow-xl p-4 backdrop-blur-md border border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800 tracking-wide">Conversations</h2>
+          <div className="flex gap-2">
             <Button
-              variant={selectedConversation === conversation.id ? 'default' : 'outline'}
-              className="flex-1 justify-start text-left"
-              onClick={() => handleConversationSelect(conversation.id)}
+              variant="outline"
+              size="sm"
+              className="rounded-lg shadow hover:scale-105 transition-all"
+              onClick={() => {
+                setSelectedConversation(null);
+                setConversationId(null);
+                setChatKey(prev => prev + 1);
+              }}
             >
-              {conversation.title}
+              New
             </Button>
             <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleDeleteConversation(conversation.id)}
+              variant="destructive"
+              size="sm"
+              className="rounded-lg shadow hover:scale-105 transition-all"
+              onClick={handleClearAllConversations}
+              disabled={conversations.length === 0}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 6h18" />
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-              </svg>
+              Clear All
             </Button>
           </div>
-        ))}
+        </div>
+        <div className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] pr-1">
+          {conversations.map((conversation) => (
+            <div key={conversation.id} className="flex items-center gap-2 group">
+              <Button
+                variant={selectedConversation === conversation.id ? 'default' : 'outline'}
+                className={`flex-1 justify-start text-left rounded-lg font-medium transition-all shadow-sm ${selectedConversation === conversation.id ? 'bg-gradient-to-r from-indigo-500 to-blue-400 text-white' : 'bg-white hover:bg-gray-100 text-gray-700'}`}
+                onClick={() => handleConversationSelect(conversation.id)}
+              >
+                {conversation.title}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full hover:bg-red-100 transition-all"
+                onClick={() => handleDeleteConversation(conversation.id)}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-gray-400 group-hover:text-red-500 transition-colors"
+                >
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col">
-        <Card className="flex-1 mb-4">
-          <CardContent className="p-4 h-[80vh] overflow-y-auto">
-            <div className="space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "flex items-start gap-3",
-                    message.role === 'user' ? "justify-end" : "justify-start"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "rounded-lg px-4 py-2 max-w-[80%] prose prose-sm dark:prose-invert",
-                      message.role === 'user'
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    )}
-                  >
-                    {message.role === 'user' ? (
-                      <p className="whitespace-pre-wrap">{message.content}</p>
-                    ) : (
-                      <ReactMarkdown
-                        components={{
-                          code({ children }) {
-                            return (
-                              <code className="bg-muted-foreground/10 rounded px-1 py-0.5 border border-muted-foreground/30 px-2 py-1">
-                                {children}
-                              </code>
-                            );
-                          },
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    )}
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          </CardContent>
-        </Card>
-        <form ref={formRef} onSubmit={handleSubmit} className="flex gap-2">
-          <Textarea
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
-            className="flex-1 resize-none"
-            rows={3}
-            disabled={isLoading}
-          />
-          <Button
-            type={isLoading ? "button" : "submit"}
-            size="lg"
-            variant={isLoading ? "destructive" : "default"}
-            onClick={() => {
-              if (isLoading) {
-                stop()
-              } else {
-                formRef.current?.requestSubmit();
-              }
-            }}
-          >
-            {isLoading ? 'Stop' : 'Send'}
-          </Button>
-        </form>
+        <ChatPanel
+          key={chatKey}
+          messages={messages}
+          input={input}
+          handleInputChange={handleInputChange}
+          handleSubmit={handleSubmit}
+          isLoading={isLoading}
+          stop={stop}
+          formRef={formRef}
+          messagesEndRef={messagesEndRef}
+        />
       </div>
     </div>
   );

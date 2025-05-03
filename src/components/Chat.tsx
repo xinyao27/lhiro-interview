@@ -66,7 +66,7 @@ function ChatPanel({ messages, input, handleInputChange, handleSubmit, isLoading
             >
               <div
                 className={cn(
-                  "rounded-2xl px-5 py-3 max-w-[75%] shadow-md text-base font-medium transition-all",
+                  "rounded-2xl px-5 py-3 shadow-md text-base font-medium transition-all",
                   message.role === 'user'
                     ? "bg-gradient-to-r from-blue-500 to-indigo-400 text-white animate-fade-in-right"
                     : "bg-gray-100 text-gray-800 animate-fade-in-left"
@@ -75,19 +75,21 @@ function ChatPanel({ messages, input, handleInputChange, handleSubmit, isLoading
                 {message.role === 'user' ? (
                   <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
                 ) : (
-                  <ReactMarkdown
-                    components={{
-                      code({ children }) {
-                        return (
-                          <code className="bg-gray-200 rounded px-2 py-1 border border-gray-300 text-sm font-mono">
-                            {children}
-                          </code>
-                        );
-                      },
-                    }}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
+                  <div className="prose max-w-none dark:prose-invert markdown-custom">
+                    <ReactMarkdown
+                      components={{
+                        code({ children }) {
+                          return (
+                            <div>
+                              {children}
+                            </div>
+                          );
+                        },
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
                 )}
               </div>
             </div>

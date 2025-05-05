@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     });
 
     // Create a stream for the AI response
-    const stream = OpenAIStream(response, {
+    const stream = OpenAIStream(response as any, {
       onCompletion: async (completion: string) => {
         // Store AI response in database
         await db.insert(messages).values({

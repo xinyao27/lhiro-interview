@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       stream: true,
     });
 
-    const stream = OpenAIStream(response, {
+    const stream = OpenAIStream(response as any, {
       onCompletion: async (completion: string) => {
         await db.insert(messages).values({
           conversationId: currentConversationId,

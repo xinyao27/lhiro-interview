@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 export async function GET(req: Request) {
   try {
     // Get all conversations
+    
     const allConversations = await db.query.conversations.findMany({
       orderBy: [desc(conversations.createdAt)],
       with: {

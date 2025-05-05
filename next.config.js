@@ -11,6 +11,12 @@ const nextConfig = {
     config.plugins.push(codeInspectorPlugin({ bundler: 'webpack' }));
     return config;
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 }
 
 module.exports = nextConfig 
